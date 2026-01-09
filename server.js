@@ -17,7 +17,6 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(visitLogger());
-app.use(requireApiKey)
 
 async function fetchJson(url, { timeoutMs = 6000 } = {}) {
   const controller = new AbortController();
@@ -52,6 +51,7 @@ const QuoteQuerySchema = z.object({
 app.get(
   '/api/quote',
   validate({ query: QuoteQuerySchema }),
+  requireApiKey,
   async (req, res, next) => {
     try {
       const data = await fetchJson('https://dummyjson.com/quotes/random', {
