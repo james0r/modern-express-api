@@ -5,18 +5,56 @@ import helmet from 'helmet';
 import morgan from 'morgan'
 import { z } from 'zod'
 import { validate } from './lib/validate.js'
-import crypto from "crypto";
-import { supabase } from "./lib/supabaseClient.js";
 import { visitLogger } from "./lib/logging.js";
 import { requireApiKey } from './lib/auth.js';
+import path from "path";
+import { fileURLToPath } from "url";
+import twig from 'twig';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express()
 
-app.use(helmet());
+app.use(express.static(path.join(__dirname, "views")));
+const isDev = process.env.NODE_ENV !== "production";
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "http://localhost:3001",
+          "http://127.0.0.1:3001",
+          ...(isDev ? ["'unsafe-inline'"] : []),
+        ],
+        connectSrc: [
+          "'self'",
+          "ws://localhost:3001",
+          "ws://127.0.0.1:3001",
+          "http://localhost:3001",
+          "http://127.0.0.1:3001",
+        ],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(visitLogger());
+
+// Set the view engine to twig
+app.set('view engine', 'twig');
+twig.cache(false);
+app.disable("view cache");
+
+// Optional: Configure twig options globally (e.g., caching, strict variables)
+app.set('twig options', {
+  allowAsync: true, // Allows asynchronous compiling
+  strict_variables: false
+});
 
 async function fetchJson(url, { timeoutMs = 6000 } = {}) {
   const controller = new AbortController();
@@ -46,6 +84,15 @@ const QuoteQuerySchema = z.object({
     .min(10)
     .max(300)
     .optional(),
+});
+
+// Define a route to render the template
+app.get('/', (req, res) => {
+  res.render('index', {
+    title: 'Hey',
+    message: 'Hello there!',
+    data: 'This is some data passed to the template'
+  });
 });
 
 app.get(
